@@ -1,0 +1,5 @@
+# Het model wordt gebouwd, niet gecommit. `python -m src.train` maakt het opnieuw.
+models/
+__pycache__/
+.pytest_cache/
+.venv/
