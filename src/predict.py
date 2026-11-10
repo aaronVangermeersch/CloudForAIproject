@@ -1,7 +1,7 @@
-"""Een opgeslagen model laden en voorspellen voor nieuwe klanten.
+"""Een opgeslagen model laden en de verkoop voorspellen.
 
-python -m src.predict data/nieuwe_maand.csv
-python -m src.predict data/nieuwe_maand.csv --zonder-schema
+python -m src.predict data/m5_subset.csv
+python -m src.predict data/m5_subset.csv --zonder-schema
 """
 
 import sys
@@ -22,8 +22,8 @@ def laad_model(pad: str | Path) -> Pipeline:
 
 
 def voorspel(model: Pipeline, df: pd.DataFrame, cfg: dict) -> np.ndarray:
-    """De kans op opzeggen, één getal per klant."""
-    return model.predict_proba(df[alle_features(cfg)])[:, 1]
+    """De verwachte verkoop in stuks, één getal per product-dag."""
+    return model.predict(df[alle_features(cfg)]).astype(float)
 
 
 def main(argv: list[str]) -> None:
@@ -32,10 +32,13 @@ def main(argv: list[str]) -> None:
     valideer = None if "--zonder-schema" in argv else schema.INVOER
 
     df = laad_data(pad, valideer_met=valideer)
-    kansen = voorspel(laad_model(cfg["model"]["pad"]), df, cfg)
+    # Zoals de batch van 20 uur: voorspel voor de laatste dag in het bestand.
+    dag = df[df["date"] == df["date"].max()].copy()
+    dag["verwacht"] = voorspel(laad_model(cfg["model"]["pad"]), dag, cfg)
 
-    print(f"{len(kansen)} klanten. Gemiddelde kans op opzeggen: {kansen.mean():.1%}")
-    print(f"Klanten boven 50%: {(kansen > 0.5).sum()}")
+    print(f"Verwachte verkoop op {dag['date'].iloc[0]:%Y-%m-%d}, {len(dag)} producten:")
+    print(dag[["item_id", "verwacht"]].round(1).to_string(index=False))
+    print(f"Totaal: {dag['verwacht'].sum():.0f} stuks")
 
 
 if __name__ == "__main__":

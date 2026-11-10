@@ -1,30 +1,40 @@
-"""Hoe de data eruit hoort te zien, vastgelegd met Pandera.
+"""Hoe de voorbereide M5-data eruit hoort te zien, vastgelegd met Pandera.
 
-Twee schema's, want op het moment van voorspellen ken je het antwoord nog niet:
+Twee schema's, want op het moment van voorspellen ken je de verkoop van morgen nog niet:
 
-- INVOER: wat een klant meebrengt, bij training én bij voorspellen
-- TRAINING: hetzelfde, plus de doelkolom
-
-Pas dit aan voor je eigen dataset. Vraag je per kolom af: welk type, welk bereik,
-welke waarden zijn toegelaten, mag ze leeg zijn?
+- INVOER: wat een product-dag meebrengt, bij training én bij voorspellen
+- TRAINING: hetzelfde, plus de doelkolom `sales`
 """
 
 import pandera.pandas as pa
 
+WEEKDAGEN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+EVENTS = ["geen", "Sporting", "Cultural", "National", "Religious"]
+
+# Aantal stuks verkocht: nooit negatief.
+_aantal = pa.Column(float, pa.Check.ge(0), coerce=True)
+
 INVOER = pa.DataFrameSchema(
     {
-        "klant_id": pa.Column(str, unique=True),
-        "maanden_klant": pa.Column(int, pa.Check.in_range(0, 600)),
-        "contract": pa.Column(str, pa.Check.isin(["maand", "1 jaar", "2 jaar"])),
-        # In euro per maand. Een bedrag in cent valt hier meteen buiten.
-        "maandbedrag": pa.Column(float, pa.Check.in_range(0, 200)),
-        "data_gb": pa.Column(float, pa.Check.ge(0)),
-        "klantendienst_contacten": pa.Column(int, pa.Check.ge(0)),
-        "toestel_via_telko": pa.Column(int, pa.Check.isin([0, 1])),
+        "item_id": pa.Column(str, pa.Check.str_matches(r"^[A-Z]+_\d_\d{3}$")),
+        "store_id": pa.Column(str, pa.Check.str_matches(r"^(CA|TX|WI)_\d$")),
+        "date": pa.Column("datetime64[ns]", coerce=True),
+        "lag_1": _aantal,
+        "lag_7": _aantal,
+        "lag_28": _aantal,
+        "gem_7": _aantal,
+        "gem_28": _aantal,
+        # In dollar. Voeding in M5 kost tussen 0,20 en 20 dollar: een prijs in cent valt erbuiten.
+        "sell_price": pa.Column(float, pa.Check.in_range(0.01, 50)),
+        "snap": pa.Column(int, pa.Check.isin([0, 1])),
+        "weekday": pa.Column(str, pa.Check.isin(WEEKDAGEN)),
+        "event_type_1": pa.Column(str, pa.Check.isin(EVENTS)),
     },
+    # Eén rij per product per dag. Een dubbele rij telt de verkoop twee keer.
+    unique=["item_id", "date"],
     # Een extra kolom is geen probleem, een ontbrekende wel.
     strict=False,
-    name="Telko-klanten",
+    name="M5-product-dagen",
 )
 
-TRAINING = INVOER.add_columns({"opgezegd": pa.Column(int, pa.Check.isin([0, 1]))})
+TRAINING = INVOER.add_columns({"sales": pa.Column(int, pa.Check.ge(0))})

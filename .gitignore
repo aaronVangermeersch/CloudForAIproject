@@ -1,5 +1,9 @@
 # Het model wordt gebouwd, niet gecommit. `python -m src.train` maakt het opnieuw.
 models/
+# De M5-data van Kaggle: de ruwe bestanden zijn groter dan 100 MB, en herverdelen mag niet zomaar.
+# De subset wordt gebouwd met `python -m src.prepare`. Zie README.
+data/*.csv
+.ipynb_checkpoints/
 __pycache__/
 .pytest_cache/
 .venv/

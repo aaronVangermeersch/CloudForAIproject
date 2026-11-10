@@ -2,28 +2,54 @@
 # Paden zijn relatief ten opzichte van de projectmap.
 
 data:
-  pad: data/telko_klanten.csv
-  id_kolom: klant_id
+  # De ruwe M5-bestanden van Kaggle. Te groot voor git, zie README.
+  ruw:
+    verkoop: data/sales_train_evaluation.csv
+    kalender: data/calendar.csv
+    prijzen: data/sell_prices.csv
+  # Wat `python -m src.prepare` daarvan maakt: één rij per product per dag.
+  pad: data/m5_subset.csv
+  winkel: CA_1
+  departement: FOODS_3
+  aantal_producten: 50  # de best verkopende, gekozen op de trainingsperiode
+  aantal_dagen: 730     # de laatste twee jaar
 
-doel: opgezegd
+doel: sales
+
+# Wat de verkoop van gisteren, vorige week en vier weken geleden was, en de
+# gemiddelden over de 7 en 28 dagen ervoor. Altijd uit het verleden, nooit van de dag zelf.
+lags: [1, 7, 28]
+gemiddelden: [7, 28]
 
 features:
   numeriek:
-    - maanden_klant
-    - maandbedrag
-    - data_gb
-    - klantendienst_contacten
-    - toestel_via_telko
+    - lag_1
+    - lag_7
+    - lag_28
+    - gem_7
+    - gem_28
+    - sell_price
+    - snap
   categorisch:
-    - contract
-  # email_bekend staat hier bewust niet: dat was het lek uit labo 4.
+    - item_id
+    - weekday
+    - event_type_1
 
 split:
-  test_grootte: 0.2
+  # Tijdsplit: de laatste 28 dagen zijn test. Nooit willekeurig, anders kent het model de toekomst.
+  test_dagen: 28
   seed: 42
 
 model:
   pad: models/model.joblib
-  max_iter: 1000
-  # Een model dat slechter doet dan dit, mag niet naar productie.
-  minimum_auc: 0.65
+  # Het model dat naar productie gaat, en de baseline die het moet verslaan.
+  soort: gradient_boosting  # vorige_week | gradient_boosting
+  baseline: vorige_week
+  gradient_boosting:
+    loss: poisson  # aantallen: nooit negatief
+    max_iter: 300
+    learning_rate: 0.05
+  # Een model dat er gemiddeld meer stuks naast zit dan dit, mag niet naar productie.
+  # De baseline "vorige week" zit er 8,7 stuks naast. Een model moet minstens 20% beter doen,
+  # anders is het de extra complexiteit niet waard. train.py eist bovendien dat het de baseline verslaat.
+  maximum_rmse: 7.0

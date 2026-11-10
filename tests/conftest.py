@@ -14,14 +14,16 @@ def cfg():
 
 @pytest.fixture(scope="session")
 def df(cfg):
+    if not cfg["data"]["pad"].exists():
+        pytest.skip("Geen data/m5_subset.csv. Download M5 en draai python -m src.prepare (README)")
     return laad_data(cfg["data"]["pad"])
 
 
 @pytest.fixture(scope="session")
-def model_en_auc(df, cfg):
+def model_en_rmse(df, cfg):
     return train(df, cfg)
 
 
 @pytest.fixture(scope="session")
-def model(model_en_auc):
-    return model_en_auc[0]
+def model(model_en_rmse):
+    return model_en_rmse[0]
